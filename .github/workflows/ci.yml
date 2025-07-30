@@ -46,49 +46,86 @@ jobs:
         # Create a test file
         echo "This is a test file for CI" > test-file.txt
         
+        # Delete test bucket if it already exists (from previous runs)
+        echo "Checking if test bucket exists..."
+        bucket_list=$(./zig-out/bin/hyprshot-cloud list-buckets)
+        if echo "$bucket_list" | grep -q "hyprshot-cloud-ci-test"; then
+          echo "Test bucket exists from previous run, deleting it first..."
+          # Try to delete any existing objects in the bucket first
+          object_list=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test || echo "")
+          if [ -n "$object_list" ]; then
+            echo "Deleting existing objects..."
+            # For each object, delete it (this is a simplified approach)
+            # In a real scenario, we'd parse the XML properly
+            echo "$object_list" | while read -r line; do
+              if [ -n "$line" ]; then
+                # Skip header lines and empty lines
+                if [[ "$line" != "Objects:" && "$line" != "" ]]; then
+                  # Try to delete the object
+                  ./zig-out/bin/hyprshot-cloud delete-object "$line" --bucket hyprshot-cloud-ci-test || true
+                fi
+              fi
+            done
+          fi
+          # Now delete the bucket
+          ./zig-out/bin/hyprshot-cloud delete-bucket --bucket hyprshot-cloud-ci-test || true
+        fi
+        
         # Create a test bucket
+        echo "Creating test bucket..."
         ./zig-out/bin/hyprshot-cloud create-bucket --bucket hyprshot-cloud-ci-test
         
         # Upload the test file
+        echo "Uploading test file..."
         ./zig-out/bin/hyprshot-cloud upload test-file.txt --bucket hyprshot-cloud-ci-test
         
         # List objects in the bucket and verify our file is there
+        echo "Verifying file was uploaded..."
         output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
         if echo "$output" | grep -q "test-file.txt"; then
           echo "File found in bucket as expected"
         else
           echo "ERROR: File not found in bucket"
+          echo "Output was: $output"
           exit 1
         fi
         
         # List buckets and verify our test bucket is there
+        echo "Verifying bucket was created..."
         output=$(./zig-out/bin/hyprshot-cloud list-buckets)
         if echo "$output" | grep -q "hyprshot-cloud-ci-test"; then
           echo "Bucket found as expected"
         else
           echo "ERROR: Bucket not found"
+          echo "Output was: $output"
           exit 1
         fi
         
         # Delete the test object
+        echo "Deleting test object..."
         ./zig-out/bin/hyprshot-cloud delete-object test-file.txt --bucket hyprshot-cloud-ci-test
         
         # Verify object was deleted
+        echo "Verifying object was deleted..."
         output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
         if echo "$output" | grep -q "test-file.txt"; then
           echo "ERROR: File still found in bucket after deletion"
+          echo "Output was: $output"
           exit 1
         else
           echo "File successfully deleted from bucket"
         fi
         
         # Delete the test bucket
+        echo "Deleting test bucket..."
         ./zig-out/bin/hyprshot-cloud delete-bucket --bucket hyprshot-cloud-ci-test
         
         # Verify bucket was deleted
+        echo "Verifying bucket was deleted..."
         output=$(./zig-out/bin/hyprshot-cloud list-buckets)
         if echo "$output" | grep -q "hyprshot-cloud-ci-test"; then
           echo "ERROR: Bucket still found after deletion"
+          echo "Output was: $output"
           exit 1
         else
           echo "Bucket successfully deleted"
