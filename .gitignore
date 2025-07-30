@@ -7,10 +7,6 @@ zig-out/
 
 # Test files
 *.png
-test_*
-
-# Test Zig files (but not source files)
-test_*.zig
 
 # IDE files
 .vscode/

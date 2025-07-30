@@ -22,4 +22,17 @@ pub fn build(b: *Build) void {
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    // Add tests
+    const tests = b.addTest(.{
+        .root_source_file = .{ .src_path = .{ .owner = b, .sub_path = "src/test_s3.zig" } },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const test_cmd = b.addRunArtifact(tests);
+    test_cmd.step.dependOn(b.getInstallStep());
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&test_cmd.step);
 }

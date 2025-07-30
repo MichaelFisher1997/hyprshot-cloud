@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.14.1
+      
+    - name: Run unit tests
+      run: zig build test
+      
+  end-to-end:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.14.1
+      
+    - name: Build project
+      run: zig build
+      
+    # Note: End-to-end tests would require S3 credentials which shouldn't be stored in GitHub Actions
+    # For now, we'll just verify the application can be built and run
+    - name: Verify CLI can be executed
+      run: ./zig-out/bin/hyprshot-cloud --help
+      
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Zig
+      uses: goto-bus-stop/setup-zig@v2
+      with:
+        version: 0.14.1
+      
+    - name: Build project
+      run: zig build
+      
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: hyprshot-cloud-${{ matrix.os }}
+        path: zig-out/bin/
