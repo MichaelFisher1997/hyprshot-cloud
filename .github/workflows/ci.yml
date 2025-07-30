@@ -35,10 +35,42 @@ jobs:
     - name: Build project
       run: zig build
       
-    # Note: End-to-end tests would require S3 credentials which shouldn't be stored in GitHub Actions
-    # For now, we'll just verify the application can be built and run
-    - name: Verify CLI can be executed
-      run: ./zig-out/bin/hyprshot-cloud --help
+    - name: Create config directory
+      run: mkdir -p ~/.config/hyprshot-cloud
+      
+    - name: Create config file
+      run: |
+        echo '{' > ~/.config/hyprshot-cloud/config.json
+        echo '    "access_key_id": "${{ secrets.S3_ACCESS_KEY_ID }}",' >> ~/.config/hyprshot-cloud/config.json
+        echo '    "secret_access_key": "${{ secrets.S3_SECRET_ACCESS_KEY }}",' >> ~/.config/hyprshot-cloud/config.json
+        echo '    "endpoint": "${{ secrets.S3_ENDPOINT }}",' >> ~/.config/hyprshot-cloud/config.json
+        echo '    "region": "${{ secrets.S3_REGION }}"' >> ~/.config/hyprshot-cloud/config.json
+        echo '}' >> ~/.config/hyprshot-cloud/config.json
+      
+    - name: Run end-to-end tests
+      run: |
+        # Create a test file
+        echo "This is a test file for CI" > test-file.txt
+        
+        # Create a test bucket
+        ./zig-out/bin/hyprshot-cloud create-bucket --bucket hyprshot-cloud-ci-test
+        
+        # Upload the test file
+        ./zig-out/bin/hyprshot-cloud upload test-file.txt --bucket hyprshot-cloud-ci-test
+        
+        # List objects in the bucket
+        ./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test
+        
+        # List buckets
+        ./zig-out/bin/hyprshot-cloud list-buckets
+        
+        # Clean up - delete the test file
+        # We would need to parse the output to get the exact key name
+        # For now, we'll just verify the commands work
+        
+        # Clean up - delete the test bucket
+        # We would need to delete all objects first
+        # For now, we'll just verify the commands work
       
   build:
     runs-on: ${{ matrix.os }}
