@@ -74,16 +74,32 @@ jobs:
         
         # Create a test bucket
         echo "Creating test bucket..."
-        ./zig-out/bin/hyprshot-cloud create-bucket --bucket hyprshot-cloud-ci-test
+        create_output=$(./zig-out/bin/hyprshot-cloud create-bucket --bucket hyprshot-cloud-ci-test 2>&1)
+        create_exit_code=$?
+        echo "Create bucket output: $create_output"
+        if [ $create_exit_code -ne 0 ]; then
+          echo "ERROR: Bucket creation failed with exit code $create_exit_code"
+          exit $create_exit_code
+        fi
         
         # Upload the test file
         echo "Uploading test file..."
-        ./zig-out/bin/hyprshot-cloud upload test-file.txt --bucket hyprshot-cloud-ci-test
+        upload_output=$(./zig-out/bin/hyprshot-cloud upload test-file.txt --bucket hyprshot-cloud-ci-test 2>&1)
+        upload_exit_code=$?
+        echo "Upload output: $upload_output"
+        if [ $upload_exit_code -ne 0 ]; then
+          echo "ERROR: Upload failed with exit code $upload_exit_code"
+          exit $upload_exit_code
+        fi
         
         # List objects in the bucket and verify our file is there
         echo "Verifying file was uploaded..."
-        output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
+        output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test 2>&1)
         echo "Full output: $output"
+        if [ -z "$output" ]; then
+          echo "ERROR: list-objects command returned no output"
+          exit 1
+        fi
         if echo "$output" | grep -q "test-file.txt"; then
           echo "File found in bucket as expected"
         else
