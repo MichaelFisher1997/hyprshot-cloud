@@ -60,7 +60,6 @@ jobs:
               if [ -n "$line" ]; then
                 # Skip header lines and empty lines
                 if [[ "$line" != "Objects:" && "$line" != "" ]]; then
-                  # Try to delete the object
                   # The line might be just the filename or have the full path
                   if [[ "$line" == *"_test-file.txt"* ]]; then
                     ./zig-out/bin/hyprshot-cloud delete-object "$line" --bucket hyprshot-cloud-ci-test || true
@@ -84,6 +83,7 @@ jobs:
         # List objects in the bucket and verify our file is there
         echo "Verifying file was uploaded..."
         output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
+        echo "Full output: $output"
         if echo "$output" | grep -q "test-file.txt"; then
           echo "File found in bucket as expected"
         else
@@ -140,6 +140,41 @@ jobs:
           exit 1
         else
           echo "Bucket successfully deleted"
+        fi
+      
+    - name: Cleanup test resources
+      if: always()
+      run: |
+        echo "Cleaning up test resources..."
+        # Try to delete any objects in the test bucket
+        object_list=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test 2>/dev/null || echo "")
+        if [ -n "$object_list" ]; then
+          echo "Deleting remaining objects..."
+          echo "$object_list" | while read -r line; do
+            if [ -n "$line" ]; then
+              # Skip header lines and empty lines
+              if [[ "$line" != "Objects:" && "$line" != "" ]]; then
+                # The line might be just the filename or have the full path
+                if [[ "$line" == *"_test-file.txt"* ]]; then
+                  ./zig-out/bin/hyprshot-cloud delete-object "$line" --bucket hyprshot-cloud-ci-test || true
+                fi
+              fi
+            fi
+          done
+        fi
+        # Try to delete the test bucket
+        ./zig-out/bin/hyprshot-cloud delete-bucket --bucket hyprshot-cloud-ci-test 2>/dev/null || true
+        echo "Cleanup completed."
+      
+    - name: Verify cleanup
+      if: always()
+      run: |
+        echo "Verifying cleanup..."
+        bucket_list=$(./zig-out/bin/hyprshot-cloud list-buckets)
+        if echo "$bucket_list" | grep -q "hyprshot-cloud-ci-test"; then
+          echo "WARNING: Test bucket still exists after cleanup"
+        else
+          echo "Test bucket successfully cleaned up"
         fi
       
   build:
