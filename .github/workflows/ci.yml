@@ -55,14 +55,16 @@ jobs:
           object_list=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test || echo "")
           if [ -n "$object_list" ]; then
             echo "Deleting existing objects..."
-            # For each object, delete it (this is a simplified approach)
-            # In a real scenario, we'd parse the XML properly
+            # For each object, delete it
             echo "$object_list" | while read -r line; do
               if [ -n "$line" ]; then
                 # Skip header lines and empty lines
                 if [[ "$line" != "Objects:" && "$line" != "" ]]; then
                   # Try to delete the object
-                  ./zig-out/bin/hyprshot-cloud delete-object "$line" --bucket hyprshot-cloud-ci-test || true
+                  # The line might be just the filename or have the full path
+                  if [[ "$line" == *"_test-file.txt"* ]]; then
+                    ./zig-out/bin/hyprshot-cloud delete-object "$line" --bucket hyprshot-cloud-ci-test || true
+                  fi
                 fi
               fi
             done
@@ -85,9 +87,14 @@ jobs:
         if echo "$output" | grep -q "test-file.txt"; then
           echo "File found in bucket as expected"
         else
-          echo "ERROR: File not found in bucket"
-          echo "Output was: $output"
-          exit 1
+          # The file might have a timestamp prefix, check for that
+          if echo "$output" | grep -q "_test-file.txt"; then
+            echo "File with timestamp prefix found in bucket as expected"
+          else
+            echo "ERROR: File not found in bucket"
+            echo "Output was: $output"
+            exit 1
+          fi
         fi
         
         # List buckets and verify our test bucket is there
@@ -101,14 +108,18 @@ jobs:
           exit 1
         fi
         
+        # Get the actual object key (with timestamp prefix)
+        echo "Getting object key for deletion..."
+        object_key=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test | grep "_test-file.txt" | head -n 1)
+        
         # Delete the test object
-        echo "Deleting test object..."
-        ./zig-out/bin/hyprshot-cloud delete-object test-file.txt --bucket hyprshot-cloud-ci-test
+        echo "Deleting test object with key: $object_key"
+        ./zig-out/bin/hyprshot-cloud delete-object "$object_key" --bucket hyprshot-cloud-ci-test
         
         # Verify object was deleted
         echo "Verifying object was deleted..."
         output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
-        if echo "$output" | grep -q "test-file.txt"; then
+        if echo "$output" | grep -q "_test-file.txt"; then
           echo "ERROR: File still found in bucket after deletion"
           echo "Output was: $output"
           exit 1
