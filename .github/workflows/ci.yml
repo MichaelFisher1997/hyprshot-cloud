@@ -67,6 +67,7 @@ jobs:
         # For now, we'll just verify the commands work
       
   build:
+    needs: [test, end-to-end]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
