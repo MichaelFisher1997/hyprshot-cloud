@@ -1,1 +1,14 @@
+# Build artifacts
+result/
+zig-cache/
+zig-out/
+
+# Config files (contains sensitive information)
+.config/
+
+# Test files
 *.png
+
+# IDE files
+.vscode/
+.idea/
