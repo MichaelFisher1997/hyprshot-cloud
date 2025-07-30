@@ -52,19 +52,47 @@ jobs:
         # Upload the test file
         ./zig-out/bin/hyprshot-cloud upload test-file.txt --bucket hyprshot-cloud-ci-test
         
-        # List objects in the bucket
-        ./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test
+        # List objects in the bucket and verify our file is there
+        output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
+        if echo "$output" | grep -q "test-file.txt"; then
+          echo "File found in bucket as expected"
+        else
+          echo "ERROR: File not found in bucket"
+          exit 1
+        fi
         
-        # List buckets
-        ./zig-out/bin/hyprshot-cloud list-buckets
+        # List buckets and verify our test bucket is there
+        output=$(./zig-out/bin/hyprshot-cloud list-buckets)
+        if echo "$output" | grep -q "hyprshot-cloud-ci-test"; then
+          echo "Bucket found as expected"
+        else
+          echo "ERROR: Bucket not found"
+          exit 1
+        fi
         
-        # Clean up - delete the test file
-        # We would need to parse the output to get the exact key name
-        # For now, we'll just verify the commands work
+        # Delete the test object
+        ./zig-out/bin/hyprshot-cloud delete-object test-file.txt --bucket hyprshot-cloud-ci-test
         
-        # Clean up - delete the test bucket
-        # We would need to delete all objects first
-        # For now, we'll just verify the commands work
+        # Verify object was deleted
+        output=$(./zig-out/bin/hyprshot-cloud list-objects --bucket hyprshot-cloud-ci-test)
+        if echo "$output" | grep -q "test-file.txt"; then
+          echo "ERROR: File still found in bucket after deletion"
+          exit 1
+        else
+          echo "File successfully deleted from bucket"
+        fi
+        
+        # Delete the test bucket
+        ./zig-out/bin/hyprshot-cloud delete-bucket --bucket hyprshot-cloud-ci-test
+        
+        # Verify bucket was deleted
+        output=$(./zig-out/bin/hyprshot-cloud list-buckets)
+        if echo "$output" | grep -q "hyprshot-cloud-ci-test"; then
+          echo "ERROR: Bucket still found after deletion"
+          exit 1
+        else
+          echo "Bucket successfully deleted"
+        fi
       
   build:
     needs: [test, end-to-end]
